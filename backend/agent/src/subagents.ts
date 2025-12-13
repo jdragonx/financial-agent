@@ -128,9 +128,14 @@ const webResearcherGraph = new StateGraph({ state: WebResearcherState })
 // Calculator Subagent
 // ============================================================================
 
+const MAX_CALCULATOR_ITERATIONS = 10;
+const CALCULATOR_THRESHOLD = 3; // Allow natural completion until (MAX - THRESHOLD) iterations
+
 const CalculatorState = z.object({
   calculation_request: z.string(),
   python_code_response: z.string().optional(),
+  previous_plannification_steps: z.string().optional(),
+  previous_python_code: z.string().optional(),
   iteration_count: z.number().default(0),
   complete: z.boolean().default(false),
 });
@@ -139,26 +144,65 @@ type CalculatorStateType = z.infer<typeof CalculatorState>;
 
 const calculatorNode = async (state: CalculatorStateType) => {
   console.log("\n🧮 [Calculator] Processing:", state.calculation_request);
-  console.log("   Iteration:", state.iteration_count);
+  console.log("   Iteration:", state.iteration_count, "/", MAX_CALCULATOR_ITERATIONS);
   console.log("   Has python_code_response:", !!state.python_code_response);
+  console.log("   Has previous_plannification_steps:", !!state.previous_plannification_steps);
+  console.log("   Has previous_python_code:", !!state.previous_python_code);
 
   const decision = await b.PythonCalculator(
     state.calculation_request,
-    state.python_code_response
+    state.python_code_response,
+    state.previous_plannification_steps,
+    state.previous_python_code,
+    state.iteration_count,
+    MAX_CALCULATOR_ITERATIONS
   );
 
+  if ("calculation_result" in decision) {
+    // Calculation is complete
+    console.log("   ✓ Calculation complete (Agent decision)");
+    return {
+      python_code_response: decision.calculation_result,
+      iteration_count: state.iteration_count + 1,
+      complete: true,
+    };
+  }
+
   if ("python_code" in decision) {
+    // Check if we've exceeded max iterations - only force stop at absolute max
+    if (state.iteration_count >= MAX_CALCULATOR_ITERATIONS) {
+      console.log("   ⚠️ Max iterations reached, forcing completion despite the agent wanting to continue");
+      const finalResult = state.python_code_response 
+        ? `Calculation Result (after ${state.iteration_count} iterations):\n\n${state.python_code_response}`
+        : "Calculation completed with available information.";
+      
+      return {
+        python_code_response: finalResult,
+        iteration_count: state.iteration_count + 1,
+        complete: true,
+      };
+    }
+
+    // Check if we're past the threshold - warn but still allow
+    if (state.iteration_count >= (MAX_CALCULATOR_ITERATIONS - CALCULATOR_THRESHOLD)) {
+      console.log("   ⚠️ Approaching max iterations, but allowing the agent to continue");
+    }
+
     // Generate Python code and execute it
     const code = decision.python_code;
+    const plannificationSteps = decision.plannification_steps;
     console.log("   → Generated Python code");
+    console.log("   → Plannification steps:", plannificationSteps.substring(0, 100));
     
     try {
       const executionResult = await pythonExecutor(code);
       console.log("   → Execution result:", executionResult.substring(0, 100));
       
-      // Store the execution result and loop back to check if it answers the request
+      // Store the execution result, plannification steps, and code for next iteration
       return {
         python_code_response: executionResult,
+        previous_plannification_steps: plannificationSteps,
+        previous_python_code: code,
         iteration_count: state.iteration_count + 1,
         complete: false,
       };
@@ -166,21 +210,15 @@ const calculatorNode = async (state: CalculatorStateType) => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.log("   → Execution error:", errorMessage);
       
-      // Store error and loop back to generate corrected code
+      // Store error, plannification steps, and code for next iteration
       return {
         python_code_response: `Execution error: ${errorMessage}`,
+        previous_plannification_steps: plannificationSteps,
+        previous_python_code: code,
         iteration_count: state.iteration_count + 1,
         complete: false,
       };
     }
-  } else if ("calculation_result" in decision) {
-    // Calculation is complete
-    console.log("   ✓ Calculation complete");
-    return {
-      python_code_response: decision.calculation_result,
-      iteration_count: state.iteration_count + 1,
-      complete: true,
-    };
   }
 
   return state;
@@ -190,15 +228,16 @@ const calculatorGraph = new StateGraph({ state: CalculatorState })
   .addNode("calculate", calculatorNode)
   .addEdge(START, "calculate")
   .addConditionalEdges("calculate", (state: CalculatorStateType) => {
-    // If calculation is complete, return END
+    // If the calculation is complete, return END
     if (state.complete) {
       return END;
     }
-    // Continue calculating (loop back) - max 10 iterations to prevent infinite loops
-    if (state.iteration_count >= 10) {
-      console.log("   ⚠️ Max iterations reached, returning current result");
+    // If we've reached max iterations, force completion
+    if (state.iteration_count >= MAX_CALCULATOR_ITERATIONS) {
+      console.log("   ⚠️ Max iterations reached, forcing completion");
       return END;
     }
+    // Continue calculating (loop back)
     return "calculate";
   })
   .compile({ checkpointer: new MemorySaver() });

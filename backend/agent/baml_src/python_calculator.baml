@@ -11,6 +11,10 @@ class CalculationResult {
 function PythonCalculator(
   request: string,
   python_code_response: string?,
+  previous_plannification_steps: string?,
+  previous_python_code: string?,
+  iteration_count: int,
+  max_iterations: int,
 ) -> PythonCode | CalculationResult {
   client "openai/gpt-4o-mini"
   prompt #"
@@ -20,16 +24,41 @@ function PythonCalculator(
     Only use python for calculations, do not use it for any other purpose.
     Remember you need to print using the print function anything you want to see as a return either for the user or for you.
 
-    {% if python_code_response %}
-      The following is the python code response:
-      {{ python_code_response }}
-
-      Check if this response has any errors, if stderr is empty, return the calculation result.
-      If stderr is not empty, return the python code again trying to fix the errors.
-    {% endif %}
-
     This is the request:
     {{ request }}
+
+    Current iteration: {{ iteration_count }} / {{ max_iterations }}
+
+    {% if previous_plannification_steps %}
+      Previous plannification steps:
+      {{ previous_plannification_steps }}
+
+      Review your previous planning to see if it was sound and if you need to adjust your approach.
+    {% endif %}
+
+    {% if previous_python_code %}
+      Previous Python code that was executed:
+      ```python
+      {{ previous_python_code }}
+      ```
+
+      Review your previous code to understand what was attempted and identify any issues or improvements needed.
+    {% endif %}
+
+    {% if python_code_response %}
+      Output from executing the previous Python code:
+      {{ python_code_response }}
+
+      Analyze this output:
+      - If there are errors (stderr), return new PythonCode with corrected code
+      - If the output is successful but incomplete, determine if you need to refine the code or if the result is satisfactory
+      - If the output successfully answers the request completely, return CalculationResult with the final answer
+    {% endif %}
+
+    IMPORTANT: 
+    - If the iteration count ({{ iteration_count }}) is equal to or greater than the max iterations ({{ max_iterations }}), you MUST return CalculationResult with the best result you have, even if it's not perfect. Do not request more code generation when you've reached the limit.
+    - Use the previous plannification steps, previous code, and execution output to make an informed decision about whether the calculation is complete or needs improvement.
+    - If the previous code executed successfully and the output answers the request, return CalculationResult instead of generating new code.
 
     {{ ctx.output_format }}
   "#
