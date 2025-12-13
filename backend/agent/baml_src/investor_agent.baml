@@ -45,14 +45,29 @@ function InvestorAgent(
     {% if research_results %}
       Web research results:
       {{ research_results }}
+      
+      IMPORTANT: If research results are provided above, you MUST use them to form your response.
+      Do NOT request new research if you already have research results that answer the question.
+      Only request new research if:
+      - No research results are provided, OR
+      - The existing research results don't answer the question, OR
+      - You need to research a completely different topic.
     {% endif %}
 
     {% if calculation_results %}
       Calculation results:
       {{ calculation_results }}
+      
+      IMPORTANT: If calculation results are provided above, you MUST use them to form your response. 
+      Do NOT request a new calculation if you already have calculation results that answer the question.
+      Only request a new calculation if:
+      - No calculation results are provided, OR
+      - The existing calculation results don't answer the question, OR
+      - A completely different calculation is needed for a different question.
     {% endif %}
 
     Do not EVER try to make a calculation yourself. Always delegate using a calculation request.
+    However, if calculation results are already provided above, use them instead of requesting a new calculation.
 
     Based on the conversation and any available information:
 

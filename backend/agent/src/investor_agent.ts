@@ -2,9 +2,9 @@ import { StateGraph, START, END } from "@langchain/langgraph";
 import { withLangGraph } from "@langchain/langgraph/zod";
 import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { z } from "zod";
-import { b } from "../baml_client";
-import type { Message } from "../baml_client/types";
-import { webResearcherGraph, calculatorGraph } from "./subagents";
+import { b } from "../baml_client/index.js";
+import type { Message } from "../baml_client/types.js";
+import { webResearcherGraph, calculatorGraph } from "./subagents.js";
 
 // ============================================================================
 // Main Investor Agent State
@@ -53,13 +53,13 @@ type InvestorAgentStateType = z.infer<typeof InvestorAgentState>;
 
 const thinkNode = async (state: InvestorAgentStateType) => {
   console.log("\n💭 [InvestorAgent] Thinking...");
-  console.log("   Messages:", state.messages.length);
+  console.log("   Messages:", state.messages?.length ?? 0);
   console.log("   Turn:", state.turnCount);
   console.log("   Has research results:", !!state.research_results);
   console.log("   Has calculation results:", !!state.calculation_results);
 
   // Convert messages to BAML Message format (BAML will format them using PrintMessages template)
-  const messages: Message[] = state.messages.map(msg => ({
+  const messages: Message[] = (state.messages || []).map(msg => ({
     role: msg.role as "user" | "assistant",
     message: msg.message,
   }));
@@ -132,7 +132,7 @@ const researchNode = async (state: InvestorAgentStateType) => {
       { configurable: { thread_id: `research-${state.turnCount}-${Date.now()}` } }
   );
 
-  const finalResults = researchResult.research_results.join("\n\n");
+  const finalResults = (researchResult.research_results || []).join("\n\n");
   console.log("   ✓ Research complete");
 
   return {

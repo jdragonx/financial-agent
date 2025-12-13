@@ -2,8 +2,8 @@ import { StateGraph, START, END } from "@langchain/langgraph";
 import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { withLangGraph } from "@langchain/langgraph/zod";
 import { z } from "zod";
-import { b } from "../baml_client";
-import { tavilySearch, pythonExecutor } from "./tools";
+import { b } from "../baml_client/index.js";
+import { tavilySearch, pythonExecutor } from "./tools.js";
 
 // ============================================================================
 // Web Researcher Subagent
@@ -39,14 +39,14 @@ type WebResearcherStateType = z.infer<typeof WebResearcherState>;
 const webResearcherNode = async (state: WebResearcherStateType) => {
   console.log("\n🔍 [WebResearcher] Processing:", state.original_query);
   console.log("   Iteration:", state.iteration_count, "/", MAX_RESEARCH_ITERATIONS);
-  console.log("   Previous results:", state.research_results.length);
+  console.log("   Previous results:", state.research_results?.length ?? 0);
 
-  const previousResultsText = state.research_results.length > 0
+  const previousResultsText = (state.research_results && state.research_results.length > 0)
     ? state.research_results.join("\n\n")
     : undefined;
 
   // Get the latest search results if any
-  const latestSearchResults = state.research_results.length > 0
+  const latestSearchResults = (state.research_results && state.research_results.length > 0)
     ? state.research_results[state.research_results.length - 1]
     : undefined;
 

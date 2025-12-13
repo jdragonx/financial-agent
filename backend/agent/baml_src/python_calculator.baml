@@ -1,5 +1,6 @@
 // Calculator subagent that generates Python code for calculations
 class PythonCode {
+  plannification_steps string @description("The plannification steps to follow to calculate the request")
   python_code string @description("The python code to run, make sure all your python code is located on this json object of your response")
 }
 
@@ -34,3 +35,9 @@ function PythonCalculator(
   "#
 }
 
+test calculate_compound_interest {
+  functions [PythonCalculator]
+  args {
+    request "Calculate the compound interest for $1000 invested at 5% for 10 years."
+  }
+}
