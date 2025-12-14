@@ -76,3 +76,14 @@ export class TooManyRequestsResponseDto extends createZodDto(
   }),
 ) {}
 
+/**
+ * DTO for the async chat response (returns immediately with threadId).
+ */
+export class ChatAsyncResponseDto extends createZodDto(
+  z.object({
+    threadId: z.string().describe('The thread ID for this conversation. Subscribe to WebSocket status updates using this ID.'),
+    status: z.literal('processing').describe('The initial status indicating processing has started'),
+    message: z.string().describe('Initial status message'),
+  }),
+) {}
+

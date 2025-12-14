@@ -5,6 +5,7 @@ import { z } from "zod";
 import { b } from "../baml_client/index.js";
 import type { Message } from "../baml_client/types.js";
 import { webResearcherGraph, calculatorGraph } from "./subagents.js";
+import { publishStatusUpdate } from "./status-publisher.js";
 
 // ============================================================================
 // Main Investor Agent State
@@ -31,6 +32,7 @@ const InvestorAgentState = z.object({
     z.string(),
     z.array(MessageSchema),
   ]).optional(),
+  threadId: z.string().optional(), // Thread ID for status updates
   messages: withLangGraph(z.array(MessageSchema), {
     reducer: {
       schema: z.array(MessageSchema),
@@ -58,6 +60,15 @@ const thinkNode = async (state: InvestorAgentStateType) => {
   console.log("   Turn:", state.turnCount);
   console.log("   Has research results:", !!state.research_results);
   console.log("   Has calculation results:", !!state.calculation_results);
+
+  // Publish status update
+  if (state.threadId) {
+    await publishStatusUpdate(
+      state.threadId,
+      "thinking",
+      "Analyzing your request and planning the next steps...",
+    );
+  }
 
   // Convert messages to BAML Message format (BAML will format them using PrintMessages template)
   const messages: Message[] = (state.messages || []).map(msg => ({
@@ -88,6 +99,17 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       console.log("   📋 Planning steps:", planningSteps);
     }
     console.log("   → Need research:", decision.research_query);
+    
+    // Publish status update
+    if (state.threadId) {
+      await publishStatusUpdate(
+        state.threadId,
+        "researching",
+        `Researching: ${decision.research_query}`,
+        planningSteps,
+      );
+    }
+    
     return {
       current_action: "researching",
       pending_research_query: decision.research_query,
@@ -100,6 +122,17 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       console.log("   📋 Planning steps:", planningSteps);
     }
     console.log("   → Need calculation:", decision.calculation_request);
+    
+    // Publish status update
+    if (state.threadId) {
+      await publishStatusUpdate(
+        state.threadId,
+        "calculating",
+        `Calculating: ${decision.calculation_request}`,
+        planningSteps,
+      );
+    }
+    
     return {
       current_action: "calculating",
       pending_calculation_request: decision.calculation_request,
@@ -108,6 +141,16 @@ const thinkNode = async (state: InvestorAgentStateType) => {
     };
   } else if ("question" in decision) {
     console.log("   → Need more info:", decision.question);
+    
+    // Publish status update
+    if (state.threadId) {
+      await publishStatusUpdate(
+        state.threadId,
+        "asking",
+        "Need more information to proceed",
+      );
+    }
+    
     return {
       current_action: "asking",
       messages: [{ role: "assistant", message: decision.question }],
@@ -115,6 +158,16 @@ const thinkNode = async (state: InvestorAgentStateType) => {
     };
   } else if ("response" in decision) {
     console.log("   → Ready to respond");
+    
+    // Publish status update
+    if (state.threadId) {
+      await publishStatusUpdate(
+        state.threadId,
+        "responding",
+        "Preparing response...",
+      );
+    }
+    
     return {
       current_action: "responding",
       messages: [{ role: "assistant", message: decision.response }],
@@ -138,6 +191,15 @@ const researchNode = async (state: InvestorAgentStateType) => {
     return { current_action: "thinking" };
   }
 
+  // Publish status update
+  if (state.threadId) {
+    await publishStatusUpdate(
+      state.threadId,
+      "researching",
+      `Searching the web for: ${state.pending_research_query}`,
+    );
+  }
+
   const researchResult = await webResearcherGraph.invoke(
     {
       original_query: state.pending_research_query,
@@ -149,6 +211,17 @@ const researchNode = async (state: InvestorAgentStateType) => {
 
   const finalResults = (researchResult.research_results || []).join("\n\n");
   console.log("   ✓ Research complete");
+
+  // Publish status update with research results
+  if (state.threadId) {
+    await publishStatusUpdate(
+      state.threadId,
+      "researching",
+      "Research completed, analyzing results...",
+      undefined,
+      finalResults.substring(0, 500), // Limit size for status update
+    );
+  }
 
   return {
     research_results: finalResults,
@@ -166,6 +239,15 @@ const calculateNode = async (state: InvestorAgentStateType) => {
     return { current_action: "thinking" };
   }
 
+  // Publish status update
+  if (state.threadId) {
+    await publishStatusUpdate(
+      state.threadId,
+      "calculating",
+      `Executing calculation: ${state.pending_calculation_request}`,
+    );
+  }
+
   const calcResult = await calculatorGraph.invoke(
     {
       calculation_request: state.pending_calculation_request,
@@ -177,6 +259,18 @@ const calculateNode = async (state: InvestorAgentStateType) => {
 
   const finalResult = calcResult.python_code_response || "Calculation completed";
   console.log("   ✓ Calculation complete");
+
+  // Publish status update with calculation results
+  if (state.threadId) {
+    await publishStatusUpdate(
+      state.threadId,
+      "calculating",
+      "Calculation completed, analyzing results...",
+      undefined,
+      undefined,
+      finalResult.substring(0, 500), // Limit size for status update
+    );
+  }
 
   // Return calculation results - they will be available for the next thinkNode call
   // and then cleared after use

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { sendMessage, type Message } from './api';
+import { sendMessage, type Message, type StatusUpdate, disconnectSocket } from './api';
 import './Chat.css';
 
 export default function Chat() {
@@ -8,6 +8,7 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [threadId, setThreadId] = useState<string | undefined>();
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -29,6 +30,13 @@ export default function Chat() {
     }
   }, [isLoading, messages.length]);
 
+  // Cleanup WebSocket on unmount
+  useEffect(() => {
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -42,11 +50,31 @@ export default function Chat() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setCurrentStatus('Sending request...');
+
+    const handleStatusUpdate = (update: StatusUpdate) => {
+      // Update status message
+      const statusMessages: Record<string, string> = {
+        thinking: '🤔 Thinking and planning...',
+        researching: `🔍 ${update.message || 'Researching...'}`,
+        calculating: `🧮 ${update.message || 'Calculating...'}`,
+        responding: '💬 Preparing response...',
+        asking: '❓ Need more information...',
+        complete: '✅ Complete',
+        error: `❌ Error: ${update.error || 'Unknown error'}`,
+      };
+      setCurrentStatus(statusMessages[update.status] || update.message || 'Processing...');
+    };
 
     try {
-      const response = await sendMessage(userMessage.message, threadId);
+      const response = await sendMessage(
+        userMessage.message,
+        threadId,
+        handleStatusUpdate,
+      );
       setThreadId(response.threadId);
       setMessages(response.messages);
+      setCurrentStatus(null);
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
@@ -54,6 +82,7 @@ export default function Chat() {
         message: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`,
       };
       setMessages((prev) => [...prev, errorMessage]);
+      setCurrentStatus(null);
     } finally {
       setIsLoading(false);
     }
@@ -107,11 +136,22 @@ export default function Chat() {
         {isLoading && (
           <div className="message assistant-message">
             <div className="message-content loading">
-              <span className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
+              {currentStatus ? (
+                <div className="status-update">
+                  <span className="typing-indicator">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </span>
+                  <span className="status-text">{currentStatus}</span>
+                </div>
+              ) : (
+                <span className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              )}
             </div>
           </div>
         )}

@@ -5,8 +5,10 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 ## Architecture
 
 - **Backend**: NestJS REST API with LangGraph agent
-- **Frontend**: React + TypeScript chat interface
+- **Frontend**: React + TypeScript chat interface with WebSocket support
 - **Agent**: LangGraph-powered investor agent with research and calculation capabilities
+- **Real-time Updates**: Redis pub/sub with WebSocket for live status updates
+- **Infrastructure**: Docker Compose for Redis service
 
 ## Quick Start
 
@@ -14,10 +16,19 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 
 - Node.js 22+
 - pnpm 9+
+- Docker and Docker Compose (for Redis)
 
 ### Running the Application
 
-1. **Start the Backend**
+1. **Start Redis**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+   This starts a Redis instance on `localhost:6379` for pub/sub communication.
+
+2. **Start the Backend**
 
    ```bash
    cd backend
@@ -27,7 +38,7 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 
    The backend will run on `http://localhost:3000`
 
-2. **Start the Frontend**
+3. **Start the Frontend**
 
    ```bash
    cd frontend
@@ -37,7 +48,7 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 
    The frontend will run on `http://localhost:5173`
 
-3. **Open the Application**
+4. **Open the Application**
 
    Navigate to `http://localhost:5173` in your browser and start chatting with the investor agent!
 
@@ -66,11 +77,15 @@ alinea/
 - Conversation thread management
 - Health check endpoints
 - Type-safe request/response handling
+- **Real-time status updates via WebSocket**
+- **Redis pub/sub for async status broadcasting**
 
 ### Frontend
 
 - Simple, clean chat interface
-- Real-time conversation
+- Real-time conversation with live status updates
+- **WebSocket connection for status updates**
+- **Visual feedback during agent processing (thinking, researching, calculating)**
 - Markdown rendering for responses
 - Conversation thread management
 - Auto-focus on input
@@ -89,6 +104,8 @@ Once the backend is running, visit:
 Set environment variables in the backend directory:
 
 - `API_APP_PORT` - Port for the API server (default: 3000)
+- `REDIS_HOST` - Redis host (default: `localhost`)
+- `REDIS_PORT` - Redis port (default: `6379`)
 
 ### Frontend
 
@@ -99,6 +116,13 @@ VITE_API_URL=http://localhost:3000
 ```
 
 - `VITE_API_URL` - Backend API URL (default: `http://localhost:3000`)
+
+### Redis
+
+Redis is configured via Docker Compose. The default configuration:
+- Host: `localhost`
+- Port: `6379`
+- Persistence: Enabled with AOF (Append Only File)
 
 ## Development
 
@@ -119,6 +143,22 @@ The investor agent can:
 - **Advise**: Provide investment advice and insights
 - **Clarify**: Ask clarifying questions when needed
 - **Remember**: Maintain conversation context within threads
+
+## Real-time Status Updates
+
+The application uses an async architecture with WebSocket and Redis pub/sub to provide real-time status updates:
+
+1. **User sends a message** → HTTP POST to `/investor-agent/chat`
+2. **Backend starts processing** → Publishes status updates to Redis
+3. **Frontend subscribes** → WebSocket connection receives status updates
+4. **User sees live updates** → Status messages like "Thinking...", "Researching...", "Calculating..."
+5. **Final response** → Complete message delivered when ready
+
+This architecture:
+- ✅ Prevents HTTP timeout issues on cloud platforms
+- ✅ Provides real-time feedback to users
+- ✅ Handles long-running agent operations gracefully
+- ✅ Scales with Redis pub/sub for multiple clients
 
 ## Example Queries
 
