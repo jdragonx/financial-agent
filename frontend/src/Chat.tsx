@@ -86,7 +86,7 @@ export default function Chat() {
           <div className="welcome-message">
             <p>👋 Welcome! Start a conversation by asking a question.</p>
             <p className="example-questions">
-              Try asking: "What is the current price of AAPL?" or "Calculate the P/E ratio for a stock with price $150 and earnings $6.11"
+              Try asking: &quot;What is the current price of AAPL?&quot; or &quot;Calculate the P/E ratio for a stock with price $150 and earnings $6.11&quot;
             </p>
           </div>
         )}

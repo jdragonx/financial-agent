@@ -43,6 +43,7 @@ const InvestorAgentState = z.object({
   current_action: z.enum(["thinking", "researching", "calculating", "responding", "asking"]).default("thinking"),
   pending_research_query: z.string().optional(),
   pending_calculation_request: z.string().optional(),
+  planning_steps: z.string().optional(),
 });
 
 type InvestorAgentStateType = z.infer<typeof InvestorAgentState>;
@@ -70,6 +71,7 @@ const thinkNode = async (state: InvestorAgentStateType) => {
     messages,
     state.research_results,
     state.calculation_results,
+    state.planning_steps, // Pass planning steps so agent remembers the plan
     currentDate
   );
 
@@ -81,17 +83,27 @@ const thinkNode = async (state: InvestorAgentStateType) => {
   };
 
   if ("research_query" in decision) {
+    const planningSteps = "planning_steps" in decision ? decision.planning_steps : undefined;
+    if (planningSteps) {
+      console.log("   📋 Planning steps:", planningSteps);
+    }
     console.log("   → Need research:", decision.research_query);
     return {
       current_action: "researching",
       pending_research_query: decision.research_query,
+      planning_steps: planningSteps, // Store planning steps for reference
       ...clearResults, // Clear any previous results
     };
   } else if ("calculation_request" in decision) {
+    const planningSteps = "planning_steps" in decision ? decision.planning_steps : undefined;
+    if (planningSteps) {
+      console.log("   📋 Planning steps:", planningSteps);
+    }
     console.log("   → Need calculation:", decision.calculation_request);
     return {
       current_action: "calculating",
       pending_calculation_request: decision.calculation_request,
+      planning_steps: planningSteps, // Store planning steps for reference
       ...clearResults, // Clear any previous results
     };
   } else if ("question" in decision) {
@@ -107,6 +119,7 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       current_action: "responding",
       messages: [{ role: "assistant", message: decision.response }],
       turnCount: state.turnCount + 1,
+      planning_steps: undefined, // Clear planning steps after completing the plan
       ...clearResults, // Clear any previous results
     };
   }
@@ -141,6 +154,7 @@ const researchNode = async (state: InvestorAgentStateType) => {
     research_results: finalResults,
     current_action: "thinking", // Go back to thinking with new research
     pending_research_query: undefined, // Clear the pending query
+    // Keep planning_steps so agent remembers the full plan
   };
 };
 
@@ -170,6 +184,7 @@ const calculateNode = async (state: InvestorAgentStateType) => {
     calculation_results: finalResult,
     current_action: "thinking", // Go back to thinking with new calculation
     pending_calculation_request: undefined, // Clear the pending request
+    // Keep planning_steps so agent remembers the full plan
   };
 };
 

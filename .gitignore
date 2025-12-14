@@ -8,6 +8,3 @@ dist/
 
 # LangGraph API
 **/.langgraph_api
-
-# BAML generated client
-baml_client/

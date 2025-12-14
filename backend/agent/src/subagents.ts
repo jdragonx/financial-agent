@@ -30,6 +30,7 @@ const WebResearcherState = z.object({
       fn: webResearcherReducer,
     },
   }),
+  planning_steps: z.string().optional(),
   iteration_count: z.number().default(0),
   complete: z.boolean().default(false),
 });
@@ -56,6 +57,7 @@ const webResearcherNode = async (state: WebResearcherStateType) => {
     state.original_query,
     previousResultsText,
     latestSearchResults,
+    state.planning_steps, // Pass planning steps so agent remembers the plan
     state.iteration_count,
     MAX_RESEARCH_ITERATIONS,
     currentDate
@@ -68,11 +70,17 @@ const webResearcherNode = async (state: WebResearcherStateType) => {
       research_results: [decision.research_summary],
       iteration_count: state.iteration_count + 1,
       complete: true,
+      planning_steps: undefined, // Clear planning steps after completion
     };
   }
 
   // If the agent wants to continue searching
   if ("search_query" in decision || "additional_query" in decision) {
+    // Extract planning steps if provided
+    const planningSteps = "planning_steps" in decision ? decision.planning_steps : state.planning_steps;
+    if (planningSteps && !state.planning_steps) {
+      console.log("   📋 Planning steps:", planningSteps.substring(0, 100));
+    }
     // Check if we've exceeded max iterations - only force stop at absolute max
     if (state.iteration_count >= MAX_RESEARCH_ITERATIONS) {
       console.log("   ⚠️ Max iterations reached, forcing completion despite the agent wanting to continue");
@@ -84,6 +92,7 @@ const webResearcherNode = async (state: WebResearcherStateType) => {
         research_results: [summary],
         iteration_count: state.iteration_count + 1,
         complete: true,
+        planning_steps: undefined, // Clear planning steps after completion
       };
     }
 
@@ -100,6 +109,7 @@ const webResearcherNode = async (state: WebResearcherStateType) => {
     // Add search results and continue (will loop back to this node)
     return {
       research_results: [searchResults],
+      planning_steps: planningSteps, // Preserve planning steps for next iteration
       iteration_count: state.iteration_count + 1,
       complete: false,
     };

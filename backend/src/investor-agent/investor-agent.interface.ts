@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 /**
  * Message type for chat messages
  */

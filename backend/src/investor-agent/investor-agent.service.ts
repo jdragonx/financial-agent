@@ -4,7 +4,6 @@ import { investorAgentGraph } from '../../agent/src/investor_agent.js';
 import type { Message } from './investor-agent.interface.js';
 import {
   ChatResult,
-  INVESTOR_AGENT_PROVIDER,
   InvestorAgentProvider,
 } from './investor-agent.interface.js';
 

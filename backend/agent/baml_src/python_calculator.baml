@@ -34,10 +34,10 @@ function PythonCalculator(
     Current iteration: {{ iteration_count }} / {{ max_iterations }}
 
     {% if previous_plannification_steps %}
-      Previous plannification steps:
+      PLANNING STEPS (from previous decision):
       {{ previous_plannification_steps }}
 
-      Review your previous planning to see if it was sound and if you need to adjust your approach.
+      IMPORTANT: Review the planning steps above. If you created a plan with multiple calculation steps, make sure to continue with the remaining steps. Do not stop after completing just one step if your plan indicates multiple steps are needed. Follow the plan you created to ensure all calculations are completed.
     {% endif %}
 
     {% if previous_python_code %}

@@ -20,7 +20,7 @@ export default registerAs('api-app', () => {
     return {
       port: parsed.API_APP_PORT,
     };
-  } catch (err) {
+  } catch {
     throw new Error('Error while validating environment variables');
   }
 });

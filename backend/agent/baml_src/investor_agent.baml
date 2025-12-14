@@ -18,10 +18,12 @@ class InvestorResponse {
 }
 
 class NeedResearch {
+  planning_steps string @description("A step-by-step plan outlining what needs to be done to answer the user's question. Include all steps (research, calculations, etc.) even if you're only doing one right now. This helps provide transparency about the full process. Use this especially when multiple steps are needed.")
   research_query string @description("The query to search for on the web. Use this only if you need to research current market data, trends, or company information")
 }
 
 class NeedCalculation {
+  planning_steps string @description("A step-by-step plan outlining what needs to be done to answer the user's question. Include all steps (research, calculations, etc.) even if you're only doing one right now. This helps provide transparency about the full process. Use this especially when multiple steps are needed.")
   calculation_request string @description("The request for a complex calculation. Use this only if you need to perform financial calculations (ROI, compound interest, portfolio analysis, etc.)")
 }
 
@@ -33,6 +35,7 @@ function InvestorAgent(
   messages: Message[],
   research_results: string?,
   calculation_results: string?,
+  planning_steps: string?,
   current_date: string,
 ) -> InvestorResponse | NeedResearch | NeedCalculation | NeedMoreInfo {
   client "openai/gpt-4o-mini"
@@ -45,6 +48,13 @@ function InvestorAgent(
 
     Conversation history:
     {{ PrintMessages(messages) }}
+
+    {% if planning_steps %}
+      PLANNING STEPS (from previous decision):
+      {{ planning_steps }}
+      
+      IMPORTANT: Review the planning steps above. If you created a plan with multiple steps, make sure to continue with the remaining steps. Do not stop after completing just one step if your plan indicates multiple steps are needed.
+    {% endif %}
 
     {% if research_results %}
       Web research results:
@@ -113,6 +123,16 @@ function InvestorAgent(
     3. If the question is ambiguous and could mean different things → ASK THE USER for clarification
     4. If you have enough information from research/calculations to provide a complete answer → return a response to the user
     5. Never ask the user for information that can be found through web research (e.g., stock prices, market data)
+
+    PLANNING GUIDELINES:
+    - When a question requires multiple steps (e.g., research AND calculation), think about the complete plan
+    - Always provide planning_steps that outline ALL steps needed, even if you're only executing one step right now
+    - Example: If you need to research stock prices AND calculate ROI, your planning_steps should be:
+      "1. Research current stock prices for [ticker]
+       2. Calculate ROI based on the researched prices
+       3. Provide investment recommendation based on the calculation"
+    - This helps the user understand the full process and ensures you don't forget steps
+    - If only one step is needed, still provide a brief planning_steps explaining that single step
 
     Based on the conversation and any available information:
 

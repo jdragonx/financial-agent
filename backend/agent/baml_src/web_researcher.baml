@@ -1,5 +1,6 @@
 // Web researcher subagent that uses Tavily to search the web
 class SearchQuery {
+  planning_steps string @description("A step-by-step plan outlining what needs to be done to complete the research. Include all search queries and information gathering steps. This helps provide transparency about the full research process.")
   search_query string @description("The search query to send to Tavily. Use this only if you want to search a completely new topic, or is the first search you are doing.")
 }
 
@@ -8,6 +9,7 @@ class ResearchComplete {
 }
 
 class NeedMoreResearch {
+  planning_steps string @description("A step-by-step plan outlining what needs to be done to complete the research. Include all search queries and information gathering steps. This helps provide transparency about the full research process.")
   additional_query string @description("An additional search query needed to complete the research. Use this only if you need to search for more information to provide a complete answer.")
 }
 
@@ -15,6 +17,7 @@ function WebResearcher(
   original_query: string,
   previous_results: string?,
   new_search_results: string?,
+  planning_steps: string?,
   iteration_count: int,
   max_iterations: int,
   current_date: string,
@@ -28,6 +31,13 @@ function WebResearcher(
 
     Original research request:
     {{ original_query }}
+
+    {% if planning_steps %}
+      PLANNING STEPS (from previous decision):
+      {{ planning_steps }}
+      
+      IMPORTANT: Review the planning steps above. If you created a plan with multiple search queries, make sure to continue with the remaining searches. Do not stop after completing just one search if your plan indicates multiple searches are needed.
+    {% endif %}
 
     {% if previous_results %}
       Previous research findings:
