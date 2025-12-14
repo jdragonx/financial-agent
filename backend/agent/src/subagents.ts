@@ -51,12 +51,14 @@ const webResearcherNode = async (state: WebResearcherStateType) => {
     : undefined;
 
   // Give the agent a chance to decide first
+  const currentDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
   const decision = await b.WebResearcher(
     state.original_query,
     previousResultsText,
     latestSearchResults,
     state.iteration_count,
-    MAX_RESEARCH_ITERATIONS
+    MAX_RESEARCH_ITERATIONS,
+    currentDate
   );
 
   // If the agent says research is complete, honor that
@@ -149,13 +151,15 @@ const calculatorNode = async (state: CalculatorStateType) => {
   console.log("   Has previous_plannification_steps:", !!state.previous_plannification_steps);
   console.log("   Has previous_python_code:", !!state.previous_python_code);
 
+  const currentDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
   const decision = await b.PythonCalculator(
     state.calculation_request,
     state.python_code_response,
     state.previous_plannification_steps,
     state.previous_python_code,
     state.iteration_count,
-    MAX_CALCULATOR_ITERATIONS
+    MAX_CALCULATOR_ITERATIONS,
+    currentDate
   );
 
   if ("calculation_result" in decision) {

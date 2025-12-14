@@ -17,10 +17,14 @@ function WebResearcher(
   new_search_results: string?,
   iteration_count: int,
   max_iterations: int,
+  current_date: string,
 ) -> SearchQuery | ResearchComplete | NeedMoreResearch {
   client "openai/gpt-4o-mini"
   prompt #"
     You are a web research specialist. Your task is to gather comprehensive information using web searches.
+
+    Current date: {{ current_date }}
+    Use this date as the reference point for all time-sensitive information (e.g., "current", "recent", "this year", etc.).
 
     Original research request:
     {{ original_query }}

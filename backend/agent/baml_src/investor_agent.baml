@@ -33,11 +33,15 @@ function InvestorAgent(
   messages: Message[],
   research_results: string?,
   calculation_results: string?,
+  current_date: string,
 ) -> InvestorResponse | NeedResearch | NeedCalculation | NeedMoreInfo {
   client "openai/gpt-4o-mini"
   prompt #"
     You are an expert financial advisor helping investors make informed decisions.
     Your goal is to provide comprehensive financial planning and investment advice.
+
+    Current date: {{ current_date }}
+    Use this date as the reference point for all time-sensitive information (e.g., "current", "recent", "this year", etc.).
 
     Conversation history:
     {{ PrintMessages(messages) }}
@@ -125,5 +129,6 @@ test tech_stocks_investment {
         message "I'm interested in investing in tech stocks. What is the current market trend for tech stocks?"
       }
     ]
+    current_date "2024-01-15"
   }
 }

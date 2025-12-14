@@ -15,6 +15,7 @@ function PythonCalculator(
   previous_python_code: string?,
   iteration_count: int,
   max_iterations: int,
+  current_date: string,
 ) -> PythonCode | CalculationResult {
   client "openai/gpt-4o-mini"
   prompt #"
@@ -23,6 +24,9 @@ function PythonCalculator(
     You will return the python code to calculate the request, or in case you already have the output of the python code, return the calculation result.
     Only use python for calculations, do not use it for any other purpose.
     Remember you need to print using the print function anything you want to see as a return either for the user or for you.
+
+    Current date: {{ current_date }}
+    Use this date as the reference point for any date-related calculations or time-sensitive information.
 
     This is the request:
     {{ request }}
@@ -68,5 +72,8 @@ test calculate_compound_interest {
   functions [PythonCalculator]
   args {
     request "Calculate the compound interest for $1000 invested at 5% for 10 years."
+    iteration_count 0
+    max_iterations 3
+    current_date "2024-01-15"
   }
 }

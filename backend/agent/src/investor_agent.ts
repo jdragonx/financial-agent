@@ -65,10 +65,12 @@ const thinkNode = async (state: InvestorAgentStateType) => {
   }));
 
   // Only pass research/calculation results if they exist (they'll be cleared after use)
+  const currentDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
   const decision = await b.InvestorAgent(
     messages,
     state.research_results,
-    state.calculation_results
+    state.calculation_results,
+    currentDate
   );
 
   // Clear research and calculation results after using them
