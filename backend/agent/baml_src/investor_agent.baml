@@ -47,18 +47,24 @@ function InvestorAgent(
     Use this date as the reference point for all time-sensitive information (e.g., "current", "recent", "this year", etc.).
 
     Conversation history:
+    ```
     {{ PrintMessages(messages) }}
+    ```
 
     {% if planning_steps %}
       PLANNING STEPS (from previous decision):
+      ```
       {{ planning_steps }}
+      ```
       
-      IMPORTANT: Review the planning steps above. If you created a plan with multiple steps, make sure to continue with the remaining steps. Do not stop after completing just one step if your plan indicates multiple steps are needed.
+      IMPORTANT: Review the planning steps above. If you created a plan with multiple steps, make sure to continue with the remaining steps. Do not stop after completing just one step if your plan indicates multiple steps are needed. Verify the steps that have already been completed and make sure to continue with the remaining steps, and not cycle through the same steps.
     {% endif %}
 
     {% if research_results %}
       Web research results:
+      ```
       {{ research_results }}
+      ```
       
       IMPORTANT: If research results are provided above, you MUST use them to form your response.
       Do NOT request new research if you already have research results that answer the question.
@@ -70,7 +76,9 @@ function InvestorAgent(
 
     {% if calculation_results %}
       Calculation results:
+      ```
       {{ calculation_results }}
+      ```
       
       IMPORTANT: If calculation results are provided above, you MUST use them to form your response. 
       Do NOT request a new calculation if you already have calculation results that answer the question.

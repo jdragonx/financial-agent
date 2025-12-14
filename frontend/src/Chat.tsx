@@ -61,7 +61,7 @@ export default function Chat() {
         responding: '💬 Preparing response...',
         asking: '❓ Need more information...',
         complete: '✅ Complete',
-        error: `❌ Error: ${update.error || 'Unknown error'}`,
+        error: `❌ ${update.error || 'Something went wrong. Please try again.'}`,
       };
       setCurrentStatus(statusMessages[update.status] || update.message || 'Processing...');
     };
@@ -76,10 +76,13 @@ export default function Chat() {
       setMessages(response.messages);
       setCurrentStatus(null);
     } catch (error) {
+      // Log full error for debugging (not shown to user)
       console.error('Error sending message:', error);
+      
+      // Show user-friendly error message
       const errorMessage: Message = {
         role: 'assistant',
-        message: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`,
+        message: 'Sorry, something went wrong. Please try again. If the problem persists, contact support.',
       };
       setMessages((prev) => [...prev, errorMessage]);
       setCurrentStatus(null);

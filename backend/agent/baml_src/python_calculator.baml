@@ -29,15 +29,19 @@ function PythonCalculator(
     Use this date as the reference point for any date-related calculations or time-sensitive information.
 
     This is the request:
+    ```
     {{ request }}
+    ```
 
     Current iteration: {{ iteration_count }} / {{ max_iterations }}
 
     {% if previous_plannification_steps %}
       PLANNING STEPS (from previous decision):
+      ```
       {{ previous_plannification_steps }}
+      ```
 
-      IMPORTANT: Review the planning steps above. If you created a plan with multiple calculation steps, make sure to continue with the remaining steps. Do not stop after completing just one step if your plan indicates multiple steps are needed. Follow the plan you created to ensure all calculations are completed.
+      IMPORTANT: Review the planning steps above. If you created a plan with multiple calculation steps, make sure to continue with the remaining steps. Do not stop after completing just one step if your plan indicates multiple steps are needed. Follow the plan you created to ensure all calculations are completed. Verify the steps that have already been completed and make sure to continue with the remaining steps, and not cycle through the same steps.
     {% endif %}
 
     {% if previous_python_code %}
@@ -51,7 +55,9 @@ function PythonCalculator(
 
     {% if python_code_response %}
       Output from executing the previous Python code:
+      ```
       {{ python_code_response }}
+      ```
 
       Analyze this output:
       - If there are errors (stderr), return new PythonCode with corrected code

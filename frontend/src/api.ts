@@ -122,7 +122,8 @@ export async function sendMessage(
                 ws.off('status-update', statusHandler);
               }
               ws.emit('unsubscribe');
-              reject(new Error(update.error || 'Unknown error'));
+              // The error message from backend is already user-friendly
+              reject(new Error(update.error || 'Something went wrong. Please try again.'));
             }
           }
         };

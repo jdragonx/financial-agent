@@ -30,23 +30,31 @@ function WebResearcher(
     Use this date as the reference point for all time-sensitive information (e.g., "current", "recent", "this year", etc.).
 
     Original research request:
+    ```
     {{ original_query }}
+    ```
 
     {% if planning_steps %}
       PLANNING STEPS (from previous decision):
+      ```
       {{ planning_steps }}
+      ```
       
-      IMPORTANT: Review the planning steps above. If you created a plan with multiple search queries, make sure to continue with the remaining searches. Do not stop after completing just one search if your plan indicates multiple searches are needed.
+      IMPORTANT: Review the planning steps above. If you created a plan with multiple search queries, make sure to continue with the remaining searches. Do not stop after completing just one search if your plan indicates multiple searches are needed. Verify the steps that have already been completed and make sure to continue with the remaining steps, and not cycle through the same steps.
     {% endif %}
 
     {% if previous_results %}
       Previous research findings:
+      ```
       {{ previous_results }}
+      ```
     {% endif %}
 
     {% if new_search_results %}
       Latest search results:
+      ```
       {{ new_search_results }}
+      ```
     {% endif %}
 
     Current iteration: {{ iteration_count }} / {{ max_iterations }}

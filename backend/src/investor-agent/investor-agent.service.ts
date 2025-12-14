@@ -108,11 +108,24 @@ export class InvestorAgentService implements InvestorAgentProvider {
 
       return chatResult;
     } catch (error) {
-      // Publish error status
+      // Log full error with stacktrace for debugging
+      console.error('Error in investor agent chat:', {
+        threadId: conversationThreadId,
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        } : error,
+      });
+
+      // Convert technical error to user-friendly message
+      const userFriendlyError = this.getUserFriendlyError(error);
+
+      // Publish user-friendly error status to frontend
       await this.redisService.publishStatusUpdate(conversationThreadId, {
         threadId: conversationThreadId,
         status: 'error',
-        error: error instanceof Error ? error.message : String(error),
+        error: userFriendlyError,
       });
       throw error;
     }
@@ -135,13 +148,33 @@ export class InvestorAgentService implements InvestorAgentProvider {
 
     // Process in the background (don't await)
     this.chat(message, conversationThreadId, messages).catch((error) => {
-      // Publish error status if processing fails
+      // Log full error with stacktrace for debugging
+      console.error('Error in investor agent chatAsync:', {
+        threadId: conversationThreadId,
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        } : error,
+      });
+
+      // Convert technical error to user-friendly message
+      const userFriendlyError = this.getUserFriendlyError(error);
+
+      // Publish user-friendly error status to frontend
       this.redisService.publishStatusUpdate(conversationThreadId, {
         threadId: conversationThreadId,
         status: 'error',
-        error: error instanceof Error ? error.message : String(error),
+        error: userFriendlyError,
       }).catch((pubError) => {
-        console.error('Failed to publish error status:', pubError);
+        console.error('Failed to publish error status:', {
+          threadId: conversationThreadId,
+          error: pubError instanceof Error ? {
+            message: pubError.message,
+            stack: pubError.stack,
+            name: pubError.name,
+          } : pubError,
+        });
       });
     });
 
@@ -171,6 +204,89 @@ export class InvestorAgentService implements InvestorAgentProvider {
         resultCache.delete(threadId);
       }
     }
+  }
+
+  /**
+   * Convert technical errors to user-friendly messages
+   * Technical details are logged but not shown to users
+   */
+  private getUserFriendlyError(error: unknown): string {
+    if (!(error instanceof Error)) {
+      return 'An unexpected error occurred. Please try again.';
+    }
+
+    const errorMessage = error.message.toLowerCase();
+    const errorName = error.name.toLowerCase();
+
+    // Type errors, null assertions, etc. - technical errors users don't need to see
+    if (
+      errorName.includes('type') ||
+      errorName.includes('null') ||
+      errorName.includes('undefined') ||
+      errorName.includes('assertion') ||
+      errorMessage.includes('cannot read property') ||
+      errorMessage.includes('is not defined') ||
+      errorMessage.includes('is not a function')
+    ) {
+      return 'An internal error occurred. Our team has been notified. Please try again in a moment.';
+    }
+
+    // Network/timeout errors
+    if (
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('network') ||
+      errorMessage.includes('fetch') ||
+      errorMessage.includes('connection')
+    ) {
+      return 'Connection issue. Please check your internet connection and try again.';
+    }
+
+    // API/service errors
+    if (
+      errorMessage.includes('api') ||
+      errorMessage.includes('service') ||
+      errorMessage.includes('500') ||
+      errorMessage.includes('503')
+    ) {
+      return 'Service temporarily unavailable. Please try again in a moment.';
+    }
+
+    // Authentication/authorization errors
+    if (
+      errorMessage.includes('unauthorized') ||
+      errorMessage.includes('forbidden') ||
+      errorMessage.includes('401') ||
+      errorMessage.includes('403')
+    ) {
+      return 'Authentication error. Please refresh the page and try again.';
+    }
+
+    // Rate limiting
+    if (
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('too many requests') ||
+      errorMessage.includes('429')
+    ) {
+      return 'Too many requests. Please wait a moment and try again.';
+    }
+
+    // Validation errors - these might be user-friendly already
+    if (errorMessage.includes('validation') || errorMessage.includes('invalid')) {
+      // Check if it's a user input validation error (keep it) or technical validation (hide it)
+      if (
+        errorMessage.includes('message') ||
+        errorMessage.includes('input') ||
+        errorMessage.includes('required')
+      ) {
+        // User input validation - show a simplified version
+        return 'Invalid input. Please check your message and try again.';
+      }
+      return 'An error occurred processing your request. Please try again.';
+    }
+
+    // Default: Generic user-friendly message
+    // Full error details are already logged for debugging
+    return 'Something went wrong. Please try again. If the problem persists, contact support.';
   }
 }
 

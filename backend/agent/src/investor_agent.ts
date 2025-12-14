@@ -4,7 +4,8 @@ import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { z } from "zod";
 import { b } from "../baml_client/index.js";
 import type { Message } from "../baml_client/types.js";
-import { webResearcherGraph, calculatorGraph } from "./subagents.js";
+import { webResearcherGraph } from "./web-researcher.js";
+import { calculatorGraph } from "./calculator.js";
 import { publishStatusUpdate } from "./status-publisher.js";
 
 // ============================================================================
@@ -42,6 +43,9 @@ const InvestorAgentState = z.object({
   turnCount: z.number().default(0),
   research_results: z.string().optional(),
   calculation_results: z.string().optional(),
+  // Accumulated results from multiple steps (for multi-step workflows)
+  accumulated_research_results: z.array(z.string()).default([]),
+  accumulated_calculation_results: z.array(z.string()).default([]),
   current_action: z.enum(["thinking", "researching", "calculating", "responding", "asking"]).default("thinking"),
   pending_research_query: z.string().optional(),
   pending_calculation_request: z.string().optional(),
@@ -76,19 +80,39 @@ const thinkNode = async (state: InvestorAgentStateType) => {
     message: msg.message,
   }));
 
-  // Only pass research/calculation results if they exist (they'll be cleared after use)
+  // Combine current results with accumulated results for multi-step workflows
+  // Current results are from the most recent subagent call
+  // Accumulated results are from previous steps in the same workflow
+  const allResearchResults = [
+    ...(state.accumulated_research_results || []),
+    ...(state.research_results ? [state.research_results] : []),
+  ];
+  const allCalculationResults = [
+    ...(state.accumulated_calculation_results || []),
+    ...(state.calculation_results ? [state.calculation_results] : []),
+  ];
+
+  // Format combined results for the prompt
+  const combinedResearchResults = allResearchResults.length > 0
+    ? allResearchResults.join("\n\n---\n\n")
+    : undefined;
+  const combinedCalculationResults = allCalculationResults.length > 0
+    ? allCalculationResults.join("\n\n---\n\n")
+    : undefined;
+
+  // Only pass research/calculation results if they exist
   const currentDate = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
   const decision = await b.InvestorAgent(
     messages,
-    state.research_results,
-    state.calculation_results,
+    combinedResearchResults,
+    combinedCalculationResults,
     state.planning_steps, // Pass planning steps so agent remembers the plan
     currentDate
   );
 
-  // Clear research and calculation results after using them
-  // They should only be available immediately after coming from subagents
-  const clearResults = {
+  // Clear current results (they're now in accumulated), but keep accumulated for next step
+  // Only clear accumulated results when we're actually responding/asking (workflow complete)
+  const clearCurrentResults = {
     research_results: undefined,
     calculation_results: undefined,
   };
@@ -114,7 +138,7 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       current_action: "researching",
       pending_research_query: decision.research_query,
       planning_steps: planningSteps, // Store planning steps for reference
-      ...clearResults, // Clear any previous results
+      ...clearCurrentResults, // Clear current results (they're in accumulated)
     };
   } else if ("calculation_request" in decision) {
     const planningSteps = "planning_steps" in decision ? decision.planning_steps : undefined;
@@ -137,7 +161,7 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       current_action: "calculating",
       pending_calculation_request: decision.calculation_request,
       planning_steps: planningSteps, // Store planning steps for reference
-      ...clearResults, // Clear any previous results
+      ...clearCurrentResults, // Clear current results (they're in accumulated)
     };
   } else if ("question" in decision) {
     console.log("   → Need more info:", decision.question);
@@ -154,7 +178,10 @@ const thinkNode = async (state: InvestorAgentStateType) => {
     return {
       current_action: "asking",
       messages: [{ role: "assistant", message: decision.question }],
-      ...clearResults, // Clear any previous results
+      ...clearCurrentResults, // Clear current results
+      // Clear accumulated results since workflow is complete
+      accumulated_research_results: [],
+      accumulated_calculation_results: [],
     };
   } else if ("response" in decision) {
     console.log("   → Ready to respond");
@@ -173,13 +200,16 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       messages: [{ role: "assistant", message: decision.response }],
       turnCount: state.turnCount + 1,
       planning_steps: undefined, // Clear planning steps after completing the plan
-      ...clearResults, // Clear any previous results
+      ...clearCurrentResults, // Clear current results
+      // Clear accumulated results since workflow is complete
+      accumulated_research_results: [],
+      accumulated_calculation_results: [],
     };
   }
 
   return {
     ...state,
-    ...clearResults, // Clear results even if no decision made
+    ...clearCurrentResults, // Clear current results even if no decision made
   };
 };
 
@@ -205,6 +235,7 @@ const researchNode = async (state: InvestorAgentStateType) => {
       original_query: state.pending_research_query,
       research_results: [],
       iteration_count: 0,
+      complete: false, // Explicitly required - no default in schema
     },
       { configurable: { thread_id: `research-${state.turnCount}-${Date.now()}` } }
   );
@@ -224,7 +255,12 @@ const researchNode = async (state: InvestorAgentStateType) => {
   }
 
   return {
-    research_results: finalResults,
+    research_results: finalResults, // Current result (will be added to accumulated in next think)
+    // Add to accumulated results for multi-step workflows
+    accumulated_research_results: [
+      ...(state.accumulated_research_results || []),
+      finalResults,
+    ],
     current_action: "thinking", // Go back to thinking with new research
     pending_research_query: undefined, // Clear the pending query
     // Keep planning_steps so agent remembers the full plan
@@ -253,6 +289,7 @@ const calculateNode = async (state: InvestorAgentStateType) => {
       calculation_request: state.pending_calculation_request,
       iteration_count: 0,
       complete: false,
+      all_execution_results: [], // Explicitly initialize to prevent undefined
     },
     { configurable: { thread_id: `calc-${state.turnCount}-${Date.now()}` } }
   );
@@ -273,9 +310,13 @@ const calculateNode = async (state: InvestorAgentStateType) => {
   }
 
   // Return calculation results - they will be available for the next thinkNode call
-  // and then cleared after use
   return {
-    calculation_results: finalResult,
+    calculation_results: finalResult, // Current result (will be added to accumulated in next think)
+    // Add to accumulated results for multi-step workflows
+    accumulated_calculation_results: [
+      ...(state.accumulated_calculation_results || []),
+      finalResult,
+    ],
     current_action: "thinking", // Go back to thinking with new calculation
     pending_calculation_request: undefined, // Clear the pending request
     // Keep planning_steps so agent remembers the full plan

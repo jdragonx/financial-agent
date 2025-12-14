@@ -1,7 +1,9 @@
 {
   "dependencies": [".."],
   "graphs": {
-    "agent": "./agent/src/index.ts:graph"
+    "agent": "./agent/src/index.ts:graph",
+    "web-researcher": "./agent/src/web-researcher.ts:webResearcherGraph",
+    "calculator": "./agent/src/calculator.ts:calculatorGraph"
   },
   "env": ".env"
 }
