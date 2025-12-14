@@ -9,6 +9,9 @@ NestJS REST API backend with LangGraph Investor Agent service.
 - Health check endpoints
 - Type-safe request/response handling
 - LangGraph-powered investor agent with research and calculation capabilities
+- **Real-time status updates via WebSocket**
+- **Redis pub/sub for async status broadcasting**
+- **Async request handling to prevent HTTP timeouts**
 
 ## Getting Started
 
@@ -16,6 +19,7 @@ NestJS REST API backend with LangGraph Investor Agent service.
 
 - Node.js 22+
 - pnpm 9+
+- Redis (via Docker Compose - see root README)
 
 ### Installation
 
@@ -60,6 +64,8 @@ Once the server is running, visit:
 ### Environment Variables
 
 - `API_APP_PORT` - Port for the API server (default: 3000)
+- `REDIS_HOST` - Redis host (default: `localhost`)
+- `REDIS_PORT` - Redis port (default: `6379`)
 
 ## API Endpoints
 
@@ -111,7 +117,8 @@ backend/
 │   ├── src/                 # Agent source code
 │   │   ├── investor_agent.ts
 │   │   ├── subagents.ts
-│   │   └── tools.ts
+│   │   ├── tools.ts
+│   │   └── status-publisher.ts  # Status update publisher
 │   └── langgraph.json       # LangGraph configuration
 ├── src/                     # NestJS API source code
 │   ├── api/                 # API controllers and DTOs
@@ -121,6 +128,12 @@ backend/
 │   │   ├── *.interface.ts  # Service interfaces
 │   │   ├── *.service.ts    # Service implementation
 │   │   └── *.module.ts     # NestJS module
+│   ├── redis/              # Redis service for pub/sub
+│   │   ├── redis.service.ts
+│   │   └── redis.module.ts
+│   ├── websocket/          # WebSocket gateway
+│   │   ├── websocket.gateway.ts
+│   │   └── websocket.module.ts
 │   ├── health/             # Health check module
 │   ├── config/             # Configuration
 │   ├── api-app.module.ts   # Root application module
@@ -128,6 +141,23 @@ backend/
 └── lib/                    # Shared utilities
     └── swagger.ts          # Swagger helper functions
 ```
+
+## Real-time Status Updates
+
+The backend uses Redis pub/sub and WebSocket to provide real-time status updates:
+
+1. **Agent Processing**: As the agent processes requests, it publishes status updates to Redis channels
+2. **WebSocket Gateway**: The WebSocket gateway subscribes to Redis channels and forwards updates to connected clients
+3. **Status Types**: Updates include statuses like "thinking", "researching", "calculating", "responding", "asking", "complete", or "error"
+4. **Thread-based**: Each conversation thread has its own Redis channel for status updates
+
+### WebSocket Endpoint
+
+- **Namespace**: `/agent-status`
+- **Events**:
+  - `subscribe` - Subscribe to status updates for a threadId
+  - `unsubscribe` - Unsubscribe from status updates
+  - `status-update` - Receive status updates (emitted by server)
 
 ## Development
 

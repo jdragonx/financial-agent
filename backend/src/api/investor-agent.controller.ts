@@ -1,7 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
+  HttpException,
+  HttpStatus,
   Inject,
+  Param,
   Post,
   UsePipes,
 } from '@nestjs/common';
@@ -15,6 +19,7 @@ import {
 import {
   ChatRequestDto,
   ChatResponseDto,
+  ChatAsyncResponseDto,
   ErrorResponseDto,
   TooManyRequestsResponseDto,
 } from './dto/investor-agent.dto.js';
@@ -178,14 +183,142 @@ export class InvestorAgentController {
       body.messages,
     );
 
-    return {
-      threadId: result.threadId,
-      messages: result.messages,
-      turnCount: result.turnCount,
-      currentAction: result.currentAction,
-      researchResults: result.researchResults,
-      calculationResults: result.calculationResults,
-    };
+      return {
+        threadId: result.threadId,
+        messages: result.messages,
+        turnCount: result.turnCount,
+        currentAction: result.currentAction,
+        researchResults: result.researchResults,
+        calculationResults: result.calculationResults,
+      };
+    }
+
+    @Post('chat-async')
+    @ApiOperation({
+      operationId: 'chatAsync',
+      summary: 'Send a message to the investor agent asynchronously',
+      description: `Send a message to the investor agent and get an immediate response with the threadId.
+The agent will process the request in the background and publish status updates via Redis pub/sub.
+Subscribe to WebSocket status updates using the returned threadId to receive real-time progress updates.
+
+**Status Updates:**
+- Subscribe to WebSocket namespace \`/agent-status\` 
+- Emit \`subscribe\` event with the threadId
+- Listen for \`status-update\` events with statuses: thinking, researching, calculating, responding, asking, complete, error
+
+**Use Cases:**
+- Long-running requests that might timeout on HTTP
+- Real-time status updates for better UX
+- Avoiding cloud platform HTTP timeout restrictions`,
+    })
+    @ApiBody({
+      description: 'Chat request with message and optional conversation context',
+      examples: {
+        newConversation: {
+          summary: 'Starting a new conversation',
+          value: {
+            message: 'What is the current price of AAPL?',
+          },
+        },
+        continueConversation: {
+          summary: 'Continuing an existing conversation',
+          value: {
+            message: 'What about its market cap?',
+            threadId: 'thread-12345-abcde',
+          },
+        },
+      },
+    })
+    @ApiResponses([
+      {
+        status: 200,
+        description: 'Request accepted, processing started. Subscribe to WebSocket for status updates.',
+        type: ChatAsyncResponseDto,
+        examples: {
+          success: {
+            summary: 'Async request accepted',
+            value: {
+              threadId: 'thread-550e8400-e29b-41d4-a716-446655440000',
+              status: 'processing',
+              message: 'Processing your request...',
+            },
+          },
+        },
+      },
+      {
+        status: 400,
+        description: 'Bad request - invalid input',
+        type: ErrorResponseDto,
+      },
+      {
+        status: 429,
+        description: 'Too many requests',
+        type: TooManyRequestsResponseDto,
+      },
+      {
+        status: 500,
+        description: 'Internal server error',
+        type: ErrorResponseDto,
+      },
+    ])
+    async chatAsync(@Body() body: ChatRequestDto): Promise<ChatAsyncResponseDto> {
+      const result = await this.investorAgentService.chatAsync(
+        body.message,
+        body.threadId,
+        body.messages,
+      );
+
+      return {
+        threadId: result.threadId,
+        status: 'processing',
+        message: 'Processing your request... Subscribe to WebSocket status updates using the threadId.',
+      };
+    }
+
+    @Get('chat-async/result/:threadId')
+    @ApiOperation({
+      operationId: 'getAsyncResult',
+      summary: 'Get the result of an async chat request',
+      description: `Get the final result of an async chat request by threadId.
+This endpoint should be called after receiving a 'complete' status update via WebSocket.
+Results are cached for 5 minutes after completion.`,
+    })
+    @ApiResponses([
+      {
+        status: 200,
+        description: 'Result found and returned',
+        type: ChatResponseDto,
+      },
+      {
+        status: 404,
+        description: 'Result not found or expired',
+        type: ErrorResponseDto,
+      },
+    ])
+    async getAsyncResult(
+      @Param('threadId') threadId: string,
+    ): Promise<ChatResponseDto> {
+      const result = this.investorAgentService.getAsyncResult(threadId);
+      
+      if (!result) {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.NOT_FOUND,
+            message: 'Result not found or expired. The request may still be processing or the result has been cleaned up.',
+            error: 'Not Found',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      return {
+        threadId: result.threadId,
+        messages: result.messages,
+        turnCount: result.turnCount,
+        currentAction: result.currentAction,
+        researchResults: result.researchResults,
+        calculationResults: result.calculationResults,
+      };
+    }
   }
-}
 

@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { INVESTOR_AGENT_PROVIDER } from './investor-agent.interface.js';
 import { InvestorAgentService } from './investor-agent.service.js';
+import { RedisModule } from '../redis/redis.module.js';
 
 @Module({
+  imports: [RedisModule],
   providers: [
     {
       provide: INVESTOR_AGENT_PROVIDER,

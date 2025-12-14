@@ -6,6 +6,8 @@ React-based chat interface for the Investor Agent backend service.
 
 - Simple, clean chat interface
 - Real-time conversation with the investor agent
+- **WebSocket connection for live status updates**
+- **Visual status indicators during agent processing**
 - Markdown rendering for assistant responses
 - Conversation thread management
 - Auto-focus on input after responses
@@ -18,6 +20,7 @@ React-based chat interface for the Investor Agent backend service.
 - Node.js 22+
 - pnpm 9+
 - Backend service running (see [backend README](../backend/README.md))
+- Redis running (via Docker Compose - see root README)
 
 ### Installation
 
@@ -86,7 +89,21 @@ The build output will be in the `dist/` directory.
 - **TypeScript** - Type safety
 - **Vite** - Build tool and dev server
 - **react-markdown** - Markdown rendering for assistant messages
+- **socket.io-client** - WebSocket client for real-time updates
 - **Zod** - Configuration validation
+
+## Real-time Status Updates
+
+The frontend connects to the backend via WebSocket to receive real-time status updates:
+
+1. **Connection**: Automatically connects to `/agent-status` namespace
+2. **Subscription**: Subscribes to status updates for the current conversation thread
+3. **Status Display**: Shows live status messages like:
+   - 🤔 Thinking and planning...
+   - 🔍 Researching...
+   - 🧮 Calculating...
+   - 💬 Preparing response...
+4. **Auto-cleanup**: Unsubscribes and disconnects when conversation completes or component unmounts
 
 ## Usage
 
