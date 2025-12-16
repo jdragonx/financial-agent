@@ -7,8 +7,9 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 - **Backend**: NestJS REST API with LangGraph agent
 - **Frontend**: React + TypeScript chat interface with WebSocket support
 - **Agent**: LangGraph-powered investor agent with research and calculation capabilities
+- **Recommendation Service**: Python FastAPI service for partner recommendations using embeddings
 - **Real-time Updates**: Redis pub/sub with WebSocket for live status updates
-- **Infrastructure**: Docker Compose for Redis service
+- **Infrastructure**: Docker Compose for Redis and PostgreSQL (with pgvector extension)
 
 ## Quick Start
 
@@ -16,17 +17,20 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 
 - Node.js 22+
 - pnpm 9+
-- Docker and Docker Compose (for Redis)
+- Python 3.9+
+- Docker and Docker Compose (for Redis, PostgreSQL, and Milvus)
 
 ### Running the Application
 
-1. **Start Redis**
+1. **Start Infrastructure Services**
 
    ```bash
    docker-compose up -d
    ```
 
-   This starts a Redis instance on `localhost:6379` for pub/sub communication.
+   This starts:
+   - Redis instance on `localhost:6379` for pub/sub communication
+   - PostgreSQL database with pgvector extension on `localhost:5432` for partner data and embeddings
 
 2. **Start the Backend**
 
@@ -48,14 +52,27 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 
    The frontend will run on `http://localhost:5173`
 
-4. **Open the Application**
+4. **Start the Recommendation Service** (Optional)
+
+   ```bash
+   cd recommendation-service
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   python init_db.py  # Initialize database tables
+   python -m app.main
+   ```
+
+   The recommendation service will run on `http://localhost:8000`
+
+5. **Open the Application**
 
    Navigate to `http://localhost:5173` in your browser and start chatting with the investor agent!
 
 ## Project Structure
 
 ```
-alinea/
+financial-agent/
 ├── backend/                 # NestJS REST API backend
 │   ├── agent/              # LangGraph agent implementation
 │   ├── src/                # NestJS API source code
@@ -63,6 +80,9 @@ alinea/
 ├── frontend/               # React frontend application
 │   ├── src/                # React source code
 │   └── README.md           # Frontend documentation
+├── recommendation-service/ # Python FastAPI recommendation service
+│   ├── app/                # FastAPI application code
+│   └── README.md           # Recommendation service documentation
 └── rules/                  # Project rules and guidelines
 ```
 
@@ -133,6 +153,16 @@ See [backend/README.md](./backend/README.md) for detailed backend documentation.
 ### Frontend Development
 
 See [frontend/README.md](./frontend/README.md) for detailed frontend documentation.
+
+### Recommendation Service Development
+
+See [recommendation-service/README.md](./recommendation-service/README.md) for detailed recommendation service documentation.
+
+The recommendation service provides:
+- Partner CRUD operations via REST API
+- Semantic search using natural language queries
+- Vector similarity search using Milvus
+- Embeddings generated using `mixedbread-ai/mxbai-embed-large-v1` model
 
 ## Agent Capabilities
 
