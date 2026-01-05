@@ -3,10 +3,11 @@ import { withLangGraph } from "@langchain/langgraph/zod";
 import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { z } from "zod";
 import { b } from "../baml_client/index.js";
-import type { Message } from "../baml_client/types.js";
+import type { Message, PartnerInfo } from "../baml_client/types.js";
 import { webResearcherGraph } from "./web-researcher.js";
 import { calculatorGraph } from "./calculator.js";
 import { publishStatusUpdate } from "./status-publisher.js";
+import { partnerSearchGraph, SearchResultSchema } from "./partner-search.js";
 
 // ============================================================================
 // Main Investor Agent State
@@ -25,6 +26,24 @@ function messagesReducer(
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   message: z.string(),
+});
+
+// Schema for partner search results
+const PartnerSearchResultSchema = z.object({
+  partner: z.object({
+    id: z.number(),
+    name: z.string(),
+    description: z.string().nullable(),
+    industry: z.string().nullable(),
+    location: z.string().nullable(),
+    website: z.string().nullable(),
+    contact_email: z.string().nullable(),
+    contact_phone: z.string().nullable(),
+    additional_data: z.record(z.any()).nullable(),
+    created_at: z.string(),
+    updated_at: z.string().nullable(),
+  }),
+  score: z.number(),
 });
 
 const InvestorAgentState = z.object({
@@ -50,6 +69,21 @@ const InvestorAgentState = z.object({
   pending_research_query: z.string().optional(),
   pending_calculation_request: z.string().optional(),
   planning_steps: z.string().optional(),
+  
+  // Partner search results (populated by sequential partner search)
+  partner_semantic_results: z.array(PartnerSearchResultSchema).default([]),
+  partner_tfidf_results: z.array(PartnerSearchResultSchema).default([]),
+  partner_keyword_results: z.array(PartnerSearchResultSchema).default([]),
+  
+  // For partner integration
+  agent_response_for_integration: z.string().optional(),
+  featured_partner: z.object({
+    id: z.number(),
+    name: z.string(),
+    description: z.string(),
+    industry: z.string(),
+    website: z.string(),
+  }).optional(),
 });
 
 type InvestorAgentStateType = z.infer<typeof InvestorAgentState>;
@@ -175,6 +209,7 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       );
     }
     
+    // Questions don't need partner integration - return directly
     return {
       current_action: "asking",
       messages: [{ role: "assistant", message: decision.question }],
@@ -195,9 +230,10 @@ const thinkNode = async (state: InvestorAgentStateType) => {
       );
     }
     
+    // Store response for partner integration instead of adding to messages directly
     return {
       current_action: "responding",
-      messages: [{ role: "assistant", message: decision.response }],
+      agent_response_for_integration: decision.response,
       turnCount: state.turnCount + 1,
       planning_steps: undefined, // Clear planning steps after completing the plan
       ...clearCurrentResults, // Clear current results
@@ -323,6 +359,131 @@ const calculateNode = async (state: InvestorAgentStateType) => {
   };
 };
 
+// Partner search node - runs sequentially after agent responds
+const partnerSearchNode = async (state: InvestorAgentStateType) => {
+  console.log("\n🤝 [InvestorAgent] Running partner search...");
+  
+  // Get the original user query from messages
+  const userMessages = (state.messages || []).filter(m => m.role === "user");
+  const originalQuery = userMessages.length > 0 
+    ? userMessages[userMessages.length - 1].message 
+    : "";
+  
+  if (!originalQuery) {
+    console.log("   ⚠️ No user query found for partner search");
+    return {};
+  }
+
+  console.log("   Query:", originalQuery);
+
+  try {
+    const searchResult = await partnerSearchGraph.invoke(
+      {
+        original_query: originalQuery,
+        semantic_results: [],
+        tfidf_results: [],
+        keyword_results: [],
+      },
+      { configurable: { thread_id: `partner-search-${Date.now()}` } }
+    );
+
+    console.log("   ✓ Partner search complete");
+    console.log(`     Semantic: ${searchResult.semantic_results?.length || 0} results`);
+    console.log(`     TF-IDF: ${searchResult.tfidf_results?.length || 0} results`);
+    console.log(`     Keyword: ${searchResult.keyword_results?.length || 0} results`);
+
+    return {
+      partner_semantic_results: searchResult.semantic_results || [],
+      partner_tfidf_results: searchResult.tfidf_results || [],
+      partner_keyword_results: searchResult.keyword_results || [],
+    };
+  } catch (error) {
+    console.warn("   ⚠️ Partner search failed:", error);
+    return {};
+  }
+};
+
+
+// Partner integration node - decides whether to feature a partner
+const partnerIntegrationNode = async (state: InvestorAgentStateType) => {
+  console.log("\n🤝 [InvestorAgent] Running partner integration...");
+  
+  // Get the agent's response that needs potential partner integration
+  const agentResponse = state.agent_response_for_integration;
+  if (!agentResponse) {
+    console.log("   ⚠️ No agent response to integrate");
+    return {};
+  }
+
+  // Get the original user query
+  const userMessages = (state.messages || []).filter(m => m.role === "user");
+  const originalQuery = userMessages.length > 0 
+    ? userMessages[userMessages.length - 1].message 
+    : "";
+
+  // Combine and deduplicate partner results
+  const allResults = [
+    ...(state.partner_semantic_results || []),
+    ...(state.partner_tfidf_results || []),
+    ...(state.partner_keyword_results || []),
+  ];
+  
+  // Deduplicate by partner ID
+  const seenIds = new Set<number>();
+  const uniquePartners: PartnerInfo[] = [];
+  for (const result of allResults) {
+    if (!seenIds.has(result.partner.id)) {
+      seenIds.add(result.partner.id);
+      uniquePartners.push({
+        id: result.partner.id,
+        name: result.partner.name,
+        description: result.partner.description || "",
+        industry: result.partner.industry || "",
+        website: result.partner.website || "",
+      });
+    }
+  }
+
+  if (uniquePartners.length === 0) {
+    console.log("   No partners to consider");
+    return {
+      messages: [{ role: "assistant", message: agentResponse }],
+      agent_response_for_integration: undefined,
+    };
+  }
+
+  console.log(`   Considering ${uniquePartners.length} unique partners`);
+
+  try {
+    const decision = await b.PartnerIntegrationAgent(
+      originalQuery,
+      agentResponse,
+      uniquePartners,
+    );
+
+    if ("updated_response" in decision) {
+      console.log(`   ✓ Featuring partner: ${decision.partner.name}`);
+      return {
+        messages: [{ role: "assistant", message: decision.updated_response }],
+        featured_partner: decision.partner,
+        agent_response_for_integration: undefined,
+      };
+    } else {
+      console.log(`   ✓ No partner featured: ${decision.reason}`);
+      return {
+        messages: [{ role: "assistant", message: agentResponse }],
+        agent_response_for_integration: undefined,
+      };
+    }
+  } catch (error) {
+    console.warn("   ⚠️ Partner integration failed:", error);
+    return {
+      messages: [{ role: "assistant", message: agentResponse }],
+      agent_response_for_integration: undefined,
+    };
+  }
+};
+
 // ============================================================================
 // Input Transformation (for LangGraph Studio UX)
 // ============================================================================
@@ -355,42 +516,31 @@ const formatInputNode = async (state: InvestorAgentStateType): Promise<Partial<I
 // Main Graph
 // ============================================================================
 
-const investorAgentGraph = new StateGraph({ state: InvestorAgentState })
-  .addNode("think", thinkNode)
-  .addNode("research", researchNode)
-  .addNode("calculate", calculateNode)
-  .addEdge(START, "think")
-  .addConditionalEdges("think", (state: InvestorAgentStateType) => {
-    // Route based on current_action set by thinkNode
-    if (state.current_action === "researching") return "research";
-    if (state.current_action === "calculating") return "calculate";
-    if (state.current_action === "responding" || state.current_action === "asking") return END;
-    return "think"; // Continue thinking if needed
-  })
-  .addEdge("research", "think") // After research, go back to thinking
-  .addEdge("calculate", "think") // After calculation, go back to thinking
-  .compile({ checkpointer: new MemorySaver() });
-
 // Graph with input transformation for better LangGraph Studio UX
 // This allows users to type a simple string instead of [{role: "user", message: "..."}]
-const investorAgentGraphWithInput = new StateGraph({ state: InvestorAgentState })
+const investorAgentGraph = new StateGraph({ state: InvestorAgentState })
   .addNode("format_input", formatInputNode)
   .addNode("think", thinkNode)
   .addNode("research", researchNode)
   .addNode("calculate", calculateNode)
+  .addNode("partner_search", partnerSearchNode)
+  .addNode("partner_integration", partnerIntegrationNode)
   .addEdge(START, "format_input")
   .addEdge("format_input", "think")
   .addConditionalEdges("think", (state: InvestorAgentStateType) => {
     // Route based on current_action set by thinkNode
     if (state.current_action === "researching") return "research";
     if (state.current_action === "calculating") return "calculate";
-    if (state.current_action === "responding" || state.current_action === "asking") return END;
+    if (state.current_action === "asking") return END; // Questions skip partner integration
+    if (state.current_action === "responding") return "partner_search"; // Sequential: search then integrate
     return "think"; // Continue thinking if needed
   })
   .addEdge("research", "think") // After research, go back to thinking
   .addEdge("calculate", "think") // After calculation, go back to thinking
+  .addEdge("partner_search", "partner_integration") // After search, integrate
+  .addEdge("partner_integration", END)
   .compile({ checkpointer: new MemorySaver() });
 
 // Export the graph with input transformation for better Studio UX
-export { investorAgentGraphWithInput as investorAgentGraph };
+export { investorAgentGraph };
 

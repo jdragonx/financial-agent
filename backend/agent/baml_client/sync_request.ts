@@ -22,7 +22,7 @@ import type { BamlRuntime, BamlCtxManager, ClientRegistry, Image, Audio, Pdf, Vi
 import { toBamlError, HTTPRequest } from "@boundaryml/baml"
 import type { Checked, Check } from "./types"
 import type * as types from "./types"
-import type {CalculationResult, InvestorResponse, Message, NeedCalculation, NeedMoreInfo, NeedMoreResearch, NeedResearch, PythonCode, ResearchComplete, SearchQuery} from "./types"
+import type {CalculationResult, FeaturePartner, InvestorResponse, Message, NeedCalculation, NeedMoreInfo, NeedMoreResearch, NeedResearch, NoPartner, PartnerInfo, PythonCode, ResearchComplete, SearchQuery} from "./types"
 import type TypeBuilder from "./type_builder"
 import type * as events from "./events"
 
@@ -50,6 +50,56 @@ export class HttpRequest {
         "InvestorAgent",
         {
           "messages": messages,"research_results": research_results?? null,"calculation_results": calculation_results?? null,"planning_steps": planning_steps?? null,"current_date": current_date
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        false,
+        env,
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  KeywordQueryAgent(
+      original_query: string,
+      __baml_options__?: BamlCallOptions<never>
+  ): HTTPRequest {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return this.runtime.buildRequestSync(
+        "KeywordQueryAgent",
+        {
+          "original_query": original_query
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        false,
+        env,
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  PartnerIntegrationAgent(
+      original_query: string,agent_response: string,partner_results: types.PartnerInfo[],
+      __baml_options__?: BamlCallOptions<never>
+  ): HTTPRequest {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return this.runtime.buildRequestSync(
+        "PartnerIntegrationAgent",
+        {
+          "original_query": original_query,"agent_response": agent_response,"partner_results": partner_results
         },
         this.ctxManager.cloneContext(),
         __baml_options__?.tb?.__tb(),
@@ -131,6 +181,56 @@ export class HttpStreamRequest {
         "InvestorAgent",
         {
           "messages": messages,"research_results": research_results?? null,"calculation_results": calculation_results?? null,"planning_steps": planning_steps?? null,"current_date": current_date
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        true,
+        env,
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  KeywordQueryAgent(
+      original_query: string,
+      __baml_options__?: BamlCallOptions<never>
+  ): HTTPRequest {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return this.runtime.buildRequestSync(
+        "KeywordQueryAgent",
+        {
+          "original_query": original_query
+        },
+        this.ctxManager.cloneContext(),
+        __baml_options__?.tb?.__tb(),
+        __baml_options__?.clientRegistry,
+        true,
+        env,
+      )
+    } catch (error) {
+      throw toBamlError(error);
+    }
+  }
+  
+  PartnerIntegrationAgent(
+      original_query: string,agent_response: string,partner_results: types.PartnerInfo[],
+      __baml_options__?: BamlCallOptions<never>
+  ): HTTPRequest {
+    try {
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      return this.runtime.buildRequestSync(
+        "PartnerIntegrationAgent",
+        {
+          "original_query": original_query,"agent_response": agent_response,"partner_results": partner_results
         },
         this.ctxManager.cloneContext(),
         __baml_options__?.tb?.__tb(),

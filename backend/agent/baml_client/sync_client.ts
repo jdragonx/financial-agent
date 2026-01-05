@@ -22,7 +22,7 @@ import type { BamlRuntime, FunctionResult, BamlCtxManager, Image, Audio, Pdf, Vi
 import { toBamlError, BamlAbortError, type HTTPRequest } from "@boundaryml/baml"
 import type { Checked, Check, RecursivePartialNull as MovedRecursivePartialNull } from "./types"
 import type * as types from "./types"
-import type {CalculationResult, InvestorResponse, Message, NeedCalculation, NeedMoreInfo, NeedMoreResearch, NeedResearch, PythonCode, ResearchComplete, SearchQuery} from "./types"
+import type {CalculationResult, FeaturePartner, InvestorResponse, Message, NeedCalculation, NeedMoreInfo, NeedMoreResearch, NeedResearch, NoPartner, PartnerInfo, PythonCode, ResearchComplete, SearchQuery} from "./types"
 import type TypeBuilder from "./type_builder"
 import { HttpRequest, HttpStreamRequest } from "./sync_request"
 import { LlmResponseParser, LlmStreamParser } from "./parser"
@@ -133,6 +133,90 @@ export class BamlSyncClient {
         options.watchers,
       )
       return raw.parsed(false) as types.InvestorResponse | types.NeedResearch | types.NeedCalculation | types.NeedMoreInfo
+    } catch (error: any) {
+      throw toBamlError(error);
+    }
+  }
+  
+  KeywordQueryAgent(
+      original_query: string,
+      __baml_options__?: BamlCallOptions<never>
+  ): string {
+    try {
+      const options = { ...this.bamlOptions, ...(__baml_options__ || {}) }
+      const signal = options.signal;
+
+      if (signal?.aborted) {
+        throw new BamlAbortError('Operation was aborted', signal.reason);
+      }
+
+      // Check if onTick is provided and reject for sync operations
+      if (options.onTick) {
+        throw new Error("onTick is not supported for synchronous functions. Please use the async client instead.");
+      }
+
+      const collector = options.collector ? (Array.isArray(options.collector) ? options.collector : [options.collector]) : [];
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      const raw = this.runtime.callFunctionSync(
+        "KeywordQueryAgent",
+        {
+          "original_query": original_query
+        },
+        this.ctxManager.cloneContext(),
+        options.tb?.__tb(),
+        options.clientRegistry,
+        collector,
+        options.tags || {},
+        env,
+        signal,
+        options.watchers,
+      )
+      return raw.parsed(false) as string
+    } catch (error: any) {
+      throw toBamlError(error);
+    }
+  }
+  
+  PartnerIntegrationAgent(
+      original_query: string,agent_response: string,partner_results: types.PartnerInfo[],
+      __baml_options__?: BamlCallOptions<never>
+  ): types.FeaturePartner | types.NoPartner {
+    try {
+      const options = { ...this.bamlOptions, ...(__baml_options__ || {}) }
+      const signal = options.signal;
+
+      if (signal?.aborted) {
+        throw new BamlAbortError('Operation was aborted', signal.reason);
+      }
+
+      // Check if onTick is provided and reject for sync operations
+      if (options.onTick) {
+        throw new Error("onTick is not supported for synchronous functions. Please use the async client instead.");
+      }
+
+      const collector = options.collector ? (Array.isArray(options.collector) ? options.collector : [options.collector]) : [];
+      const rawEnv = __baml_options__?.env ? { ...process.env, ...__baml_options__.env } : { ...process.env };
+      const env: Record<string, string> = Object.fromEntries(
+        Object.entries(rawEnv).filter(([_, value]) => value !== undefined) as [string, string][]
+      );
+      const raw = this.runtime.callFunctionSync(
+        "PartnerIntegrationAgent",
+        {
+          "original_query": original_query,"agent_response": agent_response,"partner_results": partner_results
+        },
+        this.ctxManager.cloneContext(),
+        options.tb?.__tb(),
+        options.clientRegistry,
+        collector,
+        options.tags || {},
+        env,
+        signal,
+        options.watchers,
+      )
+      return raw.parsed(false) as types.FeaturePartner | types.NoPartner
     } catch (error: any) {
       throw toBamlError(error);
     }

@@ -8,7 +8,7 @@ NestJS REST API backend with LangGraph Investor Agent service.
 - Automatic DTO generation using Zod and `nestjs-zod`
 - Health check endpoints
 - Type-safe request/response handling
-- LangGraph-powered investor agent with research and calculation capabilities
+- LangGraph-powered investor agent with research, calculation, and partner recommendation capabilities
 - **Real-time status updates via WebSocket**
 - **Redis pub/sub for async status broadcasting**
 - **Async request handling to prevent HTTP timeouts**
@@ -66,6 +66,7 @@ Once the server is running, visit:
 - `API_APP_PORT` - Port for the API server (default: 3000)
 - `REDIS_HOST` - Redis host (default: `localhost`)
 - `REDIS_PORT` - Redis port (default: `6379`)
+- `RECOMMENDATION_SERVICE_URL` - Recommendation service URL (default: `http://localhost:8000`)
 
 ## API Endpoints
 
@@ -114,9 +115,14 @@ Send a message to the investor agent and get a response.
 backend/
 ├── agent/                    # LangGraph agent implementation
 │   ├── baml_src/            # BAML source files
+│   │   ├── investor_agent.baml
+│   │   ├── keyword_agent.baml
+│   │   └── partner_integration.baml
 │   ├── src/                 # Agent source code
-│   │   ├── investor_agent.ts
-│   │   ├── subagents.ts
+│   │   ├── investor_agent.ts # Main agent graph
+│   │   ├── web-researcher.ts # Web research subgraph
+│   │   ├── calculator.ts     # Calculator subgraph
+│   │   ├── partner-search.ts # Partner search subgraph
 │   │   ├── tools.ts
 │   │   └── status-publisher.ts  # Status update publisher
 │   └── langgraph.json       # LangGraph configuration
@@ -141,6 +147,36 @@ backend/
 └── lib/                    # Shared utilities
     └── swagger.ts          # Swagger helper functions
 ```
+
+## Agent Architecture
+
+The investor agent uses a sequential graph architecture with the following flow:
+
+1. **Input Formatting**: User input is formatted into message structure
+2. **Thinking**: Agent analyzes the request and decides on next action
+3. **Research/Calculate** (if needed): Agent performs web research or calculations in a loop until ready
+4. **Partner Search** (when responding): After generating a response, agent searches for relevant partners
+5. **Partner Integration**: Agent decides whether to feature a partner and integrates it naturally
+6. **Response**: Final response is returned to the user
+
+### Subgraphs
+
+The agent uses modular subgraphs for different capabilities:
+
+- **Web Researcher**: Performs iterative web searches using Tavily API
+- **Calculator**: Executes Python code for financial calculations
+- **Partner Search**: Searches for relevant partners using three strategies:
+  - Semantic search (embedding-based)
+  - TF-IDF search (relevance scoring)
+  - Keyword search (traditional text matching)
+
+### Partner Integration
+
+After the agent generates a response, it automatically:
+1. Searches for relevant partners using the recommendation service
+2. Uses an integration agent to decide if a partner should be featured
+3. Naturally integrates partner recommendations into the response when appropriate
+4. Skips partner integration for questions or when no suitable partners are found
 
 ## Real-time Status Updates
 

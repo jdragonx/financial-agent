@@ -52,6 +52,12 @@ export interface CalculationResult {
   
 }
 
+export interface FeaturePartner {
+  updated_response: string
+  partner: PartnerInfo
+  
+}
+
 export interface InvestorResponse {
   response: string
   
@@ -83,6 +89,20 @@ export interface NeedMoreResearch {
 export interface NeedResearch {
   planning_steps: string
   research_query: string
+  
+}
+
+export interface NoPartner {
+  reason: string
+  
+}
+
+export interface PartnerInfo {
+  id: number
+  name: string
+  description: string
+  industry: string
+  website: string
   
 }
 

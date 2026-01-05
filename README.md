@@ -52,18 +52,18 @@ A full-stack application featuring a LangGraph-powered investor agent with a Rea
 
    The frontend will run on `http://localhost:5173`
 
-4. **Start the Recommendation Service** (Optional)
+4. **Start the Recommendation Service** (Required for partner recommendations)
 
    ```bash
    cd recommendation-service
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   python init_db.py  # Initialize database tables
-   python -m app.main
+   uv sync
+   ./start.sh
+   # Or: uv run python -m app.main
    ```
 
    The recommendation service will run on `http://localhost:8000`
+   
+   **Note**: The recommendation service is required for the partner search and integration feature to work.
 
 5. **Open the Application**
 
@@ -160,9 +160,16 @@ See [recommendation-service/README.md](./recommendation-service/README.md) for d
 
 The recommendation service provides:
 - Partner CRUD operations via REST API
-- Semantic search using natural language queries
-- Vector similarity search using Milvus
+- Semantic search using natural language queries (embedding-based)
+- TF-IDF search for keyword-based matching
+- Keyword search for traditional text matching
+- Vector similarity search using PostgreSQL with pgvector
 - Embeddings generated using `mixedbread-ai/mxbai-embed-large-v1` model
+
+The agent automatically uses this service to:
+- Search for relevant partners after providing a response
+- Integrate partner recommendations naturally into responses when appropriate
+- Use multiple search strategies (semantic, TF-IDF, keyword) for comprehensive results
 
 ## Agent Capabilities
 
@@ -173,6 +180,7 @@ The investor agent can:
 - **Advise**: Provide investment advice and insights
 - **Clarify**: Ask clarifying questions when needed
 - **Remember**: Maintain conversation context within threads
+- **Partner Recommendations**: Automatically search for relevant partners and integrate recommendations into responses when appropriate
 
 ## Real-time Status Updates
 

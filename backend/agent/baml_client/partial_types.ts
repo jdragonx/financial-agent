@@ -20,7 +20,7 @@ $ pnpm add @boundaryml/baml
 
 import type { Image, Audio, Pdf, Video } from "@boundaryml/baml"
 import type { Checked, Check } from "./types"
-import type {  CalculationResult,  InvestorResponse,  Message,  NeedCalculation,  NeedMoreInfo,  NeedMoreResearch,  NeedResearch,  PythonCode,  ResearchComplete,  SearchQuery } from "./types"
+import type {  CalculationResult,  FeaturePartner,  InvestorResponse,  Message,  NeedCalculation,  NeedMoreInfo,  NeedMoreResearch,  NeedResearch,  NoPartner,  PartnerInfo,  PythonCode,  ResearchComplete,  SearchQuery } from "./types"
 import type * as types from "./types"
 
 /******************************************************************************
@@ -38,6 +38,10 @@ export interface StreamState<T> {
 export namespace partial_types {
     export interface CalculationResult {
       calculation_result?: string | null
+    }
+    export interface FeaturePartner {
+      updated_response?: string | null
+      partner?: PartnerInfo | null
     }
     export interface InvestorResponse {
       response?: string | null
@@ -60,6 +64,16 @@ export namespace partial_types {
     export interface NeedResearch {
       planning_steps?: string | null
       research_query?: string | null
+    }
+    export interface NoPartner {
+      reason?: string | null
+    }
+    export interface PartnerInfo {
+      id?: number | null
+      name?: string | null
+      description?: string | null
+      industry?: string | null
+      website?: string | null
     }
     export interface PythonCode {
       plannification_steps?: string | null

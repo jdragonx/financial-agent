@@ -29,6 +29,8 @@ export default class TypeBuilder {
     
     CalculationResult: ClassViewer<'CalculationResult', "calculation_result">;
     
+    FeaturePartner: ClassViewer<'FeaturePartner', "updated_response" | "partner">;
+    
     InvestorResponse: ClassViewer<'InvestorResponse', "response">;
     
     Message: ClassViewer<'Message', "role" | "message">;
@@ -41,6 +43,10 @@ export default class TypeBuilder {
     
     NeedResearch: ClassViewer<'NeedResearch', "planning_steps" | "research_query">;
     
+    NoPartner: ClassViewer<'NoPartner', "reason">;
+    
+    PartnerInfo: ClassViewer<'PartnerInfo', "id" | "name" | "description" | "industry" | "website">;
+    
     PythonCode: ClassViewer<'PythonCode', "plannification_steps" | "python_code">;
     
     ResearchComplete: ClassViewer<'ResearchComplete', "research_summary">;
@@ -52,7 +58,7 @@ export default class TypeBuilder {
     constructor() {
         this.tb = new _TypeBuilder({
           classes: new Set([
-            "CalculationResult","InvestorResponse","Message","NeedCalculation","NeedMoreInfo","NeedMoreResearch","NeedResearch","PythonCode","ResearchComplete","SearchQuery",
+            "CalculationResult","FeaturePartner","InvestorResponse","Message","NeedCalculation","NeedMoreInfo","NeedMoreResearch","NeedResearch","NoPartner","PartnerInfo","PythonCode","ResearchComplete","SearchQuery",
           ]),
           enums: new Set([
             
@@ -62,6 +68,10 @@ export default class TypeBuilder {
         
         this.CalculationResult = this.tb.classViewer("CalculationResult", [
           "calculation_result",
+        ]);
+        
+        this.FeaturePartner = this.tb.classViewer("FeaturePartner", [
+          "updated_response","partner",
         ]);
         
         this.InvestorResponse = this.tb.classViewer("InvestorResponse", [
@@ -86,6 +96,14 @@ export default class TypeBuilder {
         
         this.NeedResearch = this.tb.classViewer("NeedResearch", [
           "planning_steps","research_query",
+        ]);
+        
+        this.NoPartner = this.tb.classViewer("NoPartner", [
+          "reason",
+        ]);
+        
+        this.PartnerInfo = this.tb.classViewer("PartnerInfo", [
+          "id","name","description","industry","website",
         ]);
         
         this.PythonCode = this.tb.classViewer("PythonCode", [
