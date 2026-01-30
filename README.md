@@ -204,7 +204,3 @@ This architecture:
 - "Calculate the P/E ratio for a stock with price $150 and earnings $6.11"
 - "Compare AAPL and MSFT market caps"
 - "What are the latest analyst ratings for Tesla?"
-
-## License
-
-This project is for interview practice purposes.
